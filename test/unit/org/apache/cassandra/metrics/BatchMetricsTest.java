@@ -19,6 +19,7 @@
 package org.apache.cassandra.metrics;
 
 import java.io.IOException;
+import java.util.Random;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -35,9 +36,9 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.service.EmbeddedCassandraService;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertTrue;
 import static org.apache.cassandra.cql3.statements.BatchStatement.metrics;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class BatchMetricsTest extends SchemaLoader
@@ -48,9 +49,14 @@ public class BatchMetricsTest extends SchemaLoader
     private static Session session;
 
     private static String KEYSPACE = "junit";
-    private static final String TABLE = "batchmetricstest";
+    private static final String LOGGER_TABLE = "loggerbatchmetricstest";
+    private static final String COUNTER_TABLE = "counterbatchmetricstest";
 
-    private static PreparedStatement ps;
+    private static PreparedStatement psLogger;
+    private static PreparedStatement psCounter;
+
+    private final long seed = System.nanoTime();
+    private final Random rand = new Random(seed);
 
     @BeforeClass()
     public static void setup() throws ConfigurationException, IOException
@@ -65,26 +71,27 @@ public class BatchMetricsTest extends SchemaLoader
 
         session.execute("CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH replication = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };");
         session.execute("USE " + KEYSPACE);
-        session.execute("CREATE TABLE IF NOT EXISTS " + TABLE + " (id int PRIMARY KEY, val text);");
+        session.execute("CREATE TABLE IF NOT EXISTS " + LOGGER_TABLE + " (id int PRIMARY KEY, val text);");
+        session.execute("CREATE TABLE IF NOT EXISTS " + COUNTER_TABLE + " (id int PRIMARY KEY, val counter);");
 
-        ps = session.prepare("INSERT INTO " + KEYSPACE + '.' + TABLE + " (id, val) VALUES (?, ?);");
+        psLogger = session.prepare("INSERT INTO " + KEYSPACE + '.' + LOGGER_TABLE + " (id, val) VALUES (?, ?);");
+        psCounter = session.prepare("UPDATE " + KEYSPACE + '.' + COUNTER_TABLE + " SET val = val + 1 WHERE id = ?;");
     }
 
-    private void executeBatch(boolean isLogged, int distinctPartitions, int statementsPerPartition)
+    private void executeLoggerBatch(BatchStatement.Type batchStatementType, int distinctPartitions, int statementsPerPartition)
     {
-        BatchStatement.Type batchType;
+        BatchStatement batch = new BatchStatement(batchStatementType);
 
-        if (isLogged) {
-            batchType = BatchStatement.Type.LOGGED;
-        } else {
-            batchType = BatchStatement.Type.UNLOGGED;
-        }
-
-        BatchStatement batch = new BatchStatement(batchType);
-
-        for (int i=0; i<distinctPartitions; i++) {
-            for (int j=0; j<statementsPerPartition; j++) {
-                batch.add(ps.bind(i, "aaaaaaaa"));
+        for (int i = 0; i < distinctPartitions; i++)
+        {
+            for (int j = 0; j < statementsPerPartition; j++)
+            {
+                if (batchStatementType == BatchStatement.Type.UNLOGGED || batchStatementType == BatchStatement.Type.LOGGED)
+                    batch.add(psLogger.bind(i, "aaaaaaaa"));
+                else if (batchStatementType == BatchStatement.Type.COUNTER)
+                    batch.add(psCounter.bind(i));
+                else
+                    throw new IllegalStateException("There is no a case for BatchStatement.Type." + batchStatementType.name());
             }
         }
 
@@ -92,28 +99,56 @@ public class BatchMetricsTest extends SchemaLoader
     }
 
     @Test
-    public void testLoggedPartitionsPerBatch() {
-        int partitionsPerBatchCountPre = (int) metrics.partitionsPerLoggedBatch.getCount();
-        executeBatch(true, 10, 2);
-        assertEquals(partitionsPerBatchCountPre+1, metrics.partitionsPerLoggedBatch.getCount());
-        assertTrue(partitionsPerBatchCountPre <= metrics.partitionsPerLoggedBatch.getSnapshot().getMax()); // decayingBuckets may not have exact value
-
-        partitionsPerBatchCountPre = (int) metrics.partitionsPerLoggedBatch.getCount();
-        executeBatch(true, 21, 2);
-        assertEquals(partitionsPerBatchCountPre+1, metrics.partitionsPerLoggedBatch.getCount());
-        assertTrue(partitionsPerBatchCountPre <= metrics.partitionsPerLoggedBatch.getSnapshot().getMax());
+    public void testLoggedPartitionsPerBatch()
+    {
+        assertPartitionsPerBatch(BatchStatement.Type.LOGGED);
     }
 
     @Test
-    public void testUnloggedPartitionsPerBatch() {
-        int partitionsPerBatchCountPre = (int) metrics.partitionsPerUnloggedBatch.getCount();
-        executeBatch(false, 7, 2);
-        assertEquals(partitionsPerBatchCountPre+1, metrics.partitionsPerUnloggedBatch.getCount());
-        assertTrue(partitionsPerBatchCountPre <= metrics.partitionsPerUnloggedBatch.getSnapshot().getMax());
+    public void testUnloggedPartitionsPerBatch()
+    {
+        assertPartitionsPerBatch(BatchStatement.Type.UNLOGGED);
+    }
 
-        partitionsPerBatchCountPre = (int) metrics.partitionsPerUnloggedBatch.getCount();
-        executeBatch(false, 25, 2);
-        assertEquals(partitionsPerBatchCountPre+1, metrics.partitionsPerUnloggedBatch.getCount());
-        assertTrue(partitionsPerBatchCountPre <= metrics.partitionsPerUnloggedBatch.getSnapshot().getMax());
+    @Test
+    public void testCounterPartitionsPerBatch()
+    {
+        assertPartitionsPerBatch(BatchStatement.Type.COUNTER);
+    }
+
+    /**
+     * Tries a range of batches (up to 10) of the specified batch type, each with a range of statement sizes (up to
+     * 50), and asserts the counts of each of the {@code BatchMetrics} given that specified batch type.
+     */
+    private void assertPartitionsPerBatch(BatchStatement.Type batchTypeTested)
+    {
+        rand.ints(rand.nextInt(10) + 1, 1, 50).forEach(i -> assertMetrics(batchTypeTested, i));
+    }
+
+    private void assertMetrics(BatchStatement.Type batchTypeTested, int statementsPerPartition)
+    {
+        int partitionsPerLoggedBatchCountPre = (int) metrics.partitionsPerLoggedBatch.getCount();
+        int partitionsPerLoggedBatchCountPost = partitionsPerLoggedBatchCountPre + (batchTypeTested == BatchStatement.Type.LOGGED ? 1 : 0);
+        int partitionsPerUnloggedBatchCountPre = (int) metrics.partitionsPerUnloggedBatch.getCount();
+        int partitionsPerUnloggedBatchCountPost = partitionsPerUnloggedBatchCountPre + (batchTypeTested == BatchStatement.Type.UNLOGGED ? 1 : 0);
+        int partitionsPerCounterBatchCountPre = (int) metrics.partitionsPerCounterBatch.getCount();
+        int partitionsPerCounterBatchCountPost = partitionsPerCounterBatchCountPre + (batchTypeTested == BatchStatement.Type.COUNTER ? 1 : 0);
+
+        int distinctPartitions = rand.nextInt(10) + 1;
+        executeLoggerBatch(batchTypeTested, distinctPartitions, statementsPerPartition);
+
+        String assertionMessage = String.format("Seed was %s producing %s distinctPartitions and %s statementsPerPartition",
+                                                seed,
+                                                distinctPartitions,
+                                                statementsPerPartition);
+
+        assertEquals(assertionMessage,partitionsPerUnloggedBatchCountPost, metrics.partitionsPerUnloggedBatch.getCount());
+        assertEquals(assertionMessage, partitionsPerLoggedBatchCountPost, metrics.partitionsPerLoggedBatch.getCount());
+        assertEquals(assertionMessage, partitionsPerCounterBatchCountPost, metrics.partitionsPerCounterBatch.getCount());
+
+        // decayingBuckets may not have exact value
+        assertTrue(assertionMessage,partitionsPerLoggedBatchCountPre <= metrics.partitionsPerLoggedBatch.getSnapshot().getMax());
+        assertTrue(assertionMessage,partitionsPerUnloggedBatchCountPre <= metrics.partitionsPerUnloggedBatch.getSnapshot().getMax());
+        assertTrue(assertionMessage,partitionsPerCounterBatchCountPre <= metrics.partitionsPerCounterBatch.getSnapshot().getMax());
     }
 }

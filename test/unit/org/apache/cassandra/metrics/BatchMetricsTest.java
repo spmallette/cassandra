@@ -24,6 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.codahale.metrics.Snapshot;
 import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
@@ -164,20 +165,24 @@ public class BatchMetricsTest extends SchemaLoader
             assertEquals(expectedPartitionsPerLoggedBatchCount, metrics.partitionsPerLoggedBatch.getCount());
             assertEquals(expectedPartitionsPerCounterBatchCount, metrics.partitionsPerCounterBatch.getCount());
 
+            Snapshot partitionsPerLoggedBatchSnapshot = metrics.partitionsPerLoggedBatch.getSnapshot();
+            Snapshot partitionsPerUnloggedBatchSnapshot = metrics.partitionsPerUnloggedBatch.getSnapshot();
+            Snapshot partitionsPerCounterBatchSnapshot = metrics.partitionsPerCounterBatch.getSnapshot();
+
             // BatchMetrics uses DecayingEstimatedHistogramReservoir which notes that the return of getMax()
             // may be more than the actual max value recorded in the reservoir with similar but reverse properties
             // for getMin()
-            assertTrue(String.format("%s not <= %s", expectedPartitionsPerLoggedBatchMax, metrics.partitionsPerLoggedBatch.getSnapshot().getMax()),
-                       expectedPartitionsPerLoggedBatchMax <= metrics.partitionsPerLoggedBatch.getSnapshot().getMax());
-            assertTrue(String.format("%s not <= %s", expectedPartitionsPerUnloggedBatchMax, metrics.partitionsPerUnloggedBatch.getSnapshot().getMax()),
-                       expectedPartitionsPerUnloggedBatchMax <= metrics.partitionsPerUnloggedBatch.getSnapshot().getMax());
-            assertTrue(String.format("%s not <= %s", expectedPartitionsPerCounterBatchMax, metrics.partitionsPerCounterBatch.getSnapshot().getMax()),
-                       expectedPartitionsPerCounterBatchMax <= metrics.partitionsPerCounterBatch.getSnapshot().getMax());
+            assertTrue(String.format("%s not <= %s", expectedPartitionsPerLoggedBatchMax, partitionsPerLoggedBatchSnapshot.getMax()),
+                       expectedPartitionsPerLoggedBatchMax <= partitionsPerLoggedBatchSnapshot.getMax());
+            assertTrue(String.format("%s not <= %s", expectedPartitionsPerUnloggedBatchMax, partitionsPerUnloggedBatchSnapshot.getMax()),
+                       expectedPartitionsPerUnloggedBatchMax <= partitionsPerUnloggedBatchSnapshot.getMax());
+            assertTrue(String.format("%s not <= %s", expectedPartitionsPerCounterBatchMax, partitionsPerCounterBatchSnapshot.getMax()),
+                       expectedPartitionsPerCounterBatchMax <= partitionsPerCounterBatchSnapshot.getMax());
 
             // the test does not run long enough to push the getMin() past it's initial value of zero.
-            assertEquals(0, metrics.partitionsPerLoggedBatch.getSnapshot().getMin());
-            assertEquals(0, metrics.partitionsPerUnloggedBatch.getSnapshot().getMin());
-            assertEquals(0, metrics.partitionsPerCounterBatch.getSnapshot().getMin());
+            assertEquals(0, partitionsPerLoggedBatchSnapshot.getMin());
+            assertEquals(0, partitionsPerUnloggedBatchSnapshot.getMin());
+            assertEquals(0, partitionsPerCounterBatchSnapshot.getMin());
         }
     }
 }

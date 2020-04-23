@@ -35,6 +35,8 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.service.EmbeddedCassandraService;
+import org.apache.cassandra.metrics.DecayingEstimatedHistogramReservoir.EstimatedHistogramReservoirSnapshot;
+import org.apache.cassandra.utils.Pair;
 
 import static org.apache.cassandra.cql3.statements.BatchStatement.metrics;
 import static org.junit.Assert.assertEquals;
@@ -61,10 +63,6 @@ public class BatchMetricsTest extends SchemaLoader
 
     private static PreparedStatement psLogger;
     private static PreparedStatement psCounter;
-
-    private static long expectedPartitionsPerLoggedBatchMax = 0;
-    private static long expectedPartitionsPerUnloggedBatchMax = 0;
-    private static long expectedPartitionsPerCounterBatchMax = 0;
 
     @BeforeClass()
     public static void setup() throws ConfigurationException, IOException
@@ -141,6 +139,9 @@ public class BatchMetricsTest extends SchemaLoader
 
     private void assertMetrics(BatchStatement.Type batchTypeTested, int[] rounds, int distinctPartitions)
     {
+        // reset the histogram between runs
+        clearHistogram();
+
         // roundsOfStatementsPerPartition - array length is the number of rounds to executeLoggerBatch() and each
         // value in the array represents the number of statements to execute per partition on that round
         for (int ix = 0; ix < rounds.length; ix++)
@@ -152,37 +153,74 @@ public class BatchMetricsTest extends SchemaLoader
             long partitionsPerCounterBatchCountPre = metrics.partitionsPerCounterBatch.getCount();
             long expectedPartitionsPerCounterBatchCount = partitionsPerCounterBatchCountPre + (batchTypeTested == BatchStatement.Type.COUNTER ? 1 : 0);
 
-            expectedPartitionsPerLoggedBatchMax = Math.max(expectedPartitionsPerLoggedBatchMax,
-                                                           batchTypeTested == BatchStatement.Type.LOGGED ? distinctPartitions : 0);
-            expectedPartitionsPerUnloggedBatchMax = Math.max(expectedPartitionsPerUnloggedBatchMax,
-                                                             batchTypeTested == BatchStatement.Type.UNLOGGED ? distinctPartitions : 0);
-            expectedPartitionsPerCounterBatchMax = Math.max(expectedPartitionsPerCounterBatchMax,
-                                                            batchTypeTested == BatchStatement.Type.COUNTER ? distinctPartitions : 0);
-
             executeLoggerBatch(batchTypeTested, distinctPartitions, rounds[ix]);
 
             assertEquals(expectedPartitionsPerUnloggedBatchCount, metrics.partitionsPerUnloggedBatch.getCount());
             assertEquals(expectedPartitionsPerLoggedBatchCount, metrics.partitionsPerLoggedBatch.getCount());
             assertEquals(expectedPartitionsPerCounterBatchCount, metrics.partitionsPerCounterBatch.getCount());
 
-            Snapshot partitionsPerLoggedBatchSnapshot = metrics.partitionsPerLoggedBatch.getSnapshot();
-            Snapshot partitionsPerUnloggedBatchSnapshot = metrics.partitionsPerUnloggedBatch.getSnapshot();
-            Snapshot partitionsPerCounterBatchSnapshot = metrics.partitionsPerCounterBatch.getSnapshot();
+            EstimatedHistogramReservoirSnapshot partitionsPerLoggedBatchSnapshot = (EstimatedHistogramReservoirSnapshot) metrics.partitionsPerLoggedBatch.getSnapshot();
+            EstimatedHistogramReservoirSnapshot partitionsPerUnloggedBatchSnapshot = (EstimatedHistogramReservoirSnapshot) metrics.partitionsPerUnloggedBatch.getSnapshot();
+            EstimatedHistogramReservoirSnapshot partitionsPerCounterBatchSnapshot = (EstimatedHistogramReservoirSnapshot) metrics.partitionsPerCounterBatch.getSnapshot();
 
             // BatchMetrics uses DecayingEstimatedHistogramReservoir which notes that the return of getMax()
             // may be more than the actual max value recorded in the reservoir with similar but reverse properties
-            // for getMin()
-            assertTrue(String.format("%s not <= %s", expectedPartitionsPerLoggedBatchMax, partitionsPerLoggedBatchSnapshot.getMax()),
-                       expectedPartitionsPerLoggedBatchMax <= partitionsPerLoggedBatchSnapshot.getMax());
-            assertTrue(String.format("%s not <= %s", expectedPartitionsPerUnloggedBatchMax, partitionsPerUnloggedBatchSnapshot.getMax()),
-                       expectedPartitionsPerUnloggedBatchMax <= partitionsPerUnloggedBatchSnapshot.getMax());
-            assertTrue(String.format("%s not <= %s", expectedPartitionsPerCounterBatchMax, partitionsPerCounterBatchSnapshot.getMax()),
-                       expectedPartitionsPerCounterBatchMax <= partitionsPerCounterBatchSnapshot.getMax());
+            // for getMin(). uses getBucketingForValue() on the snapshot to identify the exact max. since the
+            // distinctPartitions doesn't change per test round these values shouldn't change.
+            Pair<Long,Long> expectedPartitionsPerLoggedBatchMinMax = batchTypeTested == BatchStatement.Type.LOGGED ?
+                                                                     determineExpectedMinMax(partitionsPerLoggedBatchSnapshot, distinctPartitions) :
+                                                                     Pair.create(0L, 0L);
+            Pair<Long,Long> expectedPartitionsPerUnloggedBatchMinMax = batchTypeTested == BatchStatement.Type.UNLOGGED ?
+                                                                       determineExpectedMinMax(partitionsPerUnloggedBatchSnapshot, distinctPartitions) :
+                                                                       Pair.create(0L, 0L);
+            Pair<Long,Long> expectedPartitionsPerCounterBatchMinMax = batchTypeTested == BatchStatement.Type.COUNTER ?
+                                                                      determineExpectedMinMax(partitionsPerCounterBatchSnapshot, distinctPartitions) :
+                                                                      Pair.create(0L, 0L);
 
-            // the test does not run long enough to push the getMin() past it's initial value of zero.
-            assertEquals(0, partitionsPerLoggedBatchSnapshot.getMin());
-            assertEquals(0, partitionsPerUnloggedBatchSnapshot.getMin());
-            assertEquals(0, partitionsPerCounterBatchSnapshot.getMin());
+            assertEquals(expectedPartitionsPerLoggedBatchMinMax.right.longValue(), partitionsPerLoggedBatchSnapshot.getMax());
+            assertEquals(expectedPartitionsPerUnloggedBatchMinMax.right.longValue(), partitionsPerUnloggedBatchSnapshot.getMax());
+            assertEquals(expectedPartitionsPerCounterBatchMinMax.right.longValue(), partitionsPerCounterBatchSnapshot.getMax());
+
+            assertTrue(String.format("expected min to be less than %s but was %s",
+                                     expectedPartitionsPerLoggedBatchMinMax.left, partitionsPerLoggedBatchSnapshot.getMin()),
+                       expectedPartitionsPerLoggedBatchMinMax.left <= partitionsPerLoggedBatchSnapshot.getMin());
+            assertTrue(String.format("expected min to be less than %s but was %s",
+                                     expectedPartitionsPerLoggedBatchMinMax.left, partitionsPerLoggedBatchSnapshot.getMin()),
+                       expectedPartitionsPerUnloggedBatchMinMax.left <= partitionsPerUnloggedBatchSnapshot.getMin());
+            assertTrue(String.format("expected min to be less than %s but was %s",
+                                     expectedPartitionsPerLoggedBatchMinMax.left, partitionsPerLoggedBatchSnapshot.getMin()),
+                       expectedPartitionsPerCounterBatchMinMax.left <= partitionsPerCounterBatchSnapshot.getMin());
         }
+    }
+
+    private void clearHistogram()
+    {
+        ((ClearableHistogram) metrics.partitionsPerLoggedBatch).clear();
+        ((ClearableHistogram) metrics.partitionsPerUnloggedBatch).clear();
+        ((ClearableHistogram) metrics.partitionsPerCounterBatch).clear();
+    }
+
+    private Pair<Long,Long> determineExpectedMinMax(EstimatedHistogramReservoirSnapshot snapshot, long value)
+    {
+        long max = snapshot.getBucketingForValue(value);
+        long current = value;
+        long min = max;
+
+        // for the min, grab the lower next lower bound below the current value. this logic probably could have
+        // been implemented more easily in getBucketingForValue() by returning the the "bucketing" for both, but
+        // then the function felt less general purposed and too bound to the requirements of this specific test.
+        while(min == max && current > 0)
+        {
+            current--;
+            if (current > 1)
+            {
+                min = snapshot.getBucketingForValue(current);
+            }
+            else
+            {
+                min = 0;
+            }
+        }
+        return Pair.create(min, max);
     }
 }

@@ -524,6 +524,13 @@ public class DecayingEstimatedHistogramReservoir implements Reservoir
             return snapshotLandmark;
         }
 
+        @VisibleForTesting
+        public long getBucketingForValue(long value)
+        {
+            int index = findIndex(bucketOffsets, value);
+            return bucketOffsets[index];
+        }
+
         /**
          * Return the number of registered values taking forward decay into account.
          *

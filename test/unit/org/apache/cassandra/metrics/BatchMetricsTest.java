@@ -19,6 +19,7 @@
 package org.apache.cassandra.metrics;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -71,6 +72,8 @@ public class BatchMetricsTest extends SchemaLoader
 
         cassandra = new EmbeddedCassandraService();
         cassandra.start();
+
+        DatabaseDescriptor.setWriteRpcTimeout(TimeUnit.SECONDS.toMillis(10));
 
         cluster = Cluster.builder().addContactPoint("127.0.0.1").withPort(DatabaseDescriptor.getNativeTransportPort()).build();
         session = cluster.connect();
@@ -177,19 +180,9 @@ public class BatchMetricsTest extends SchemaLoader
                                                                       determineExpectedMinMax(partitionsPerCounterBatchSnapshot, distinctPartitions) :
                                                                       Pair.create(0L, 0L);
 
-            assertEquals(expectedPartitionsPerLoggedBatchMinMax.right.longValue(), partitionsPerLoggedBatchSnapshot.getMax());
-            assertEquals(expectedPartitionsPerUnloggedBatchMinMax.right.longValue(), partitionsPerUnloggedBatchSnapshot.getMax());
-            assertEquals(expectedPartitionsPerCounterBatchMinMax.right.longValue(), partitionsPerCounterBatchSnapshot.getMax());
-
-            assertTrue(String.format("expected min to be less than %s but was %s",
-                                     expectedPartitionsPerLoggedBatchMinMax.left, partitionsPerLoggedBatchSnapshot.getMin()),
-                       expectedPartitionsPerLoggedBatchMinMax.left <= partitionsPerLoggedBatchSnapshot.getMin());
-            assertTrue(String.format("expected min to be less than %s but was %s",
-                                     expectedPartitionsPerLoggedBatchMinMax.left, partitionsPerLoggedBatchSnapshot.getMin()),
-                       expectedPartitionsPerUnloggedBatchMinMax.left <= partitionsPerUnloggedBatchSnapshot.getMin());
-            assertTrue(String.format("expected min to be less than %s but was %s",
-                                     expectedPartitionsPerLoggedBatchMinMax.left, partitionsPerLoggedBatchSnapshot.getMin()),
-                       expectedPartitionsPerCounterBatchMinMax.left <= partitionsPerCounterBatchSnapshot.getMin());
+            assertEquals(expectedPartitionsPerLoggedBatchMinMax, Pair.create(partitionsPerLoggedBatchSnapshot.getMin(), partitionsPerLoggedBatchSnapshot.getMax()));
+            assertEquals(expectedPartitionsPerUnloggedBatchMinMax, Pair.create(partitionsPerUnloggedBatchSnapshot.getMin(), partitionsPerUnloggedBatchSnapshot.getMax()));
+            assertEquals(expectedPartitionsPerCounterBatchMinMax, Pair.create(partitionsPerCounterBatchSnapshot.getMin(), partitionsPerCounterBatchSnapshot.getMax()));
         }
     }
 
@@ -202,25 +195,6 @@ public class BatchMetricsTest extends SchemaLoader
 
     private Pair<Long,Long> determineExpectedMinMax(EstimatedHistogramReservoirSnapshot snapshot, long value)
     {
-        long max = snapshot.getBucketingForValue(value);
-        long current = value;
-        long min = max;
-
-        // for the min, grab the lower next lower bound below the current value. this logic probably could have
-        // been implemented more easily in getBucketingForValue() by returning the the "bucketing" for both, but
-        // then the function felt less general purposed and too bound to the requirements of this specific test.
-        while(min == max && current > 0)
-        {
-            current--;
-            if (current > 1)
-            {
-                min = snapshot.getBucketingForValue(current);
-            }
-            else
-            {
-                min = 0;
-            }
-        }
-        return Pair.create(min, max);
+        return snapshot.getBucketingRangeForValue(value);
     }
 }

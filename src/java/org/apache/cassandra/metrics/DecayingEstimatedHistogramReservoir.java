@@ -32,6 +32,7 @@ import com.codahale.metrics.Clock;
 import com.codahale.metrics.Reservoir;
 import com.codahale.metrics.Snapshot;
 import org.apache.cassandra.utils.EstimatedHistogram;
+import org.apache.cassandra.utils.Pair;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -525,10 +526,12 @@ public class DecayingEstimatedHistogramReservoir implements Reservoir
         }
 
         @VisibleForTesting
-        public long getBucketingForValue(long value)
+        public Pair<Long, Long> getBucketingRangeForValue(long value)
         {
             int index = findIndex(bucketOffsets, value);
-            return bucketOffsets[index];
+            long max = bucketOffsets[index];
+            long min = index == 0 ? 0 : 1 + bucketOffsets[index - 1];
+            return Pair.create(min, max);
         }
 
         /**

@@ -168,6 +168,9 @@ public class ChunkCache
 
     public RebuffererFactory wrap(ChunkReader file)
     {
+        if (!enabled)
+            return file;
+
         return new CachingRebufferer(file);
     }
 

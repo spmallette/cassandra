@@ -19,6 +19,7 @@
 package org.apache.cassandra.metrics;
 
 import org.junit.After;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,6 +43,12 @@ public class BufferPoolMetricsTest
     public static void setup() throws ConfigurationException
     {
         DatabaseDescriptor.daemonInitialization();
+    }
+
+    @Before
+    public void setUp()
+    {
+        BufferPool.MEMORY_USAGE_THRESHOLD = 16 * 1024L * 1024L;
     }
 
     @After
@@ -72,7 +79,7 @@ public class BufferPoolMetricsTest
             BufferPool.get(bufferSize, BufferType.OFF_HEAP);
 
             assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
-                                               .isGreaterThan(0);
+                                               .isGreaterThanOrEqualTo(totalBytesRequestedFromPool);
 
             if (initialSizeInBytesAfterZero == 0)
             {

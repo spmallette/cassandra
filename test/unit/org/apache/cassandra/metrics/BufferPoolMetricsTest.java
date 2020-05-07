@@ -34,6 +34,7 @@ import org.apache.cassandra.utils.memory.BufferPool;
 import org.apache.cassandra.utils.memory.BufferPoolTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
@@ -57,6 +58,7 @@ public class BufferPoolMetricsTest
     public void cleanUp()
     {
         BufferPoolTest.resetBufferPool();
+        metrics.misses.mark(metrics.misses.getCount() * -1);
     }
 
     @Test
@@ -69,12 +71,14 @@ public class BufferPoolMetricsTest
         // the idea is to test changes in the sizeOfBufferPool metric which starts at zero. it will bump up
         // after the first request for a ByteBuffer and the idea from there will be to keep requesting them
         // until it bumps a second time at which point there should be some confidence that thie metric is
-        // behaving as expected. these assertions should occur well within the first 256 ByteBuffer requests.
+        // behaving as expected. these assertions should occur well within the value of the MEMORY_USAGE_THRESHOLD
+        // given the maxBufferSize (just covering the case of the weirdest random seed in the multiverse i guess - a
+        // while loop might have sufficed as well but a definitive termination seemed nicer)
         final long seed = System.currentTimeMillis();
         final Random rand = new Random(seed);
         final String assertionMessage = String.format("Failed with seed of %s", seed);
-        final int maxIterations = 256;
-        final int maxBufferSize = 65536;
+        final long maxIterations = BufferPool.MEMORY_USAGE_THRESHOLD;
+        final int maxBufferSize = BufferPool.NORMAL_CHUNK_SIZE - 1;
         int nextSizeToRequest;
         long totalBytesRequestedFromPool = 0;
         long initialSizeInBytesAfterZero = 0;
@@ -107,6 +111,7 @@ public class BufferPoolMetricsTest
         }
 
         assertThat(exitedBeforeMax).as(assertionMessage).isTrue();
+        assertEquals(0, metrics.misses.getCount());
     }
 
     @Test
@@ -128,6 +133,67 @@ public class BufferPoolMetricsTest
         {
             BufferPool.get(bigBufferSizeThatMisses + ix, BufferType.OFF_HEAP);
             assertEquals(ix + 1, metrics.misses.getCount());
+        }
+    }
+
+    @Test
+    public void testZeroSizeRequestsDontChangeMetrics()
+    {
+        assertEquals(0, metrics.misses.getCount());
+        assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
+                                           .isEqualTo(0);
+
+        BufferPool.get(0, BufferType.OFF_HEAP);
+
+        assertEquals(0, metrics.misses.getCount());
+        assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
+                                           .isEqualTo(0);
+
+        BufferPool.get(65536, BufferType.OFF_HEAP);
+        BufferPool.get(0, BufferType.OFF_HEAP);
+        BufferPool.get(0, BufferType.OFF_HEAP);
+        BufferPool.get(0, BufferType.OFF_HEAP);
+        BufferPool.get(0, BufferType.OFF_HEAP);
+
+        assertEquals(0, metrics.misses.getCount());
+        assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
+                                           .isGreaterThanOrEqualTo(65536);
+    }
+
+    @Test
+    public void testFailedRequestsDontChangeMetrics()
+    {
+        assertEquals(0, metrics.misses.getCount());
+        assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
+                                           .isEqualTo(0);
+
+        tryRequestNegativeBufferSize();
+
+        assertEquals(0, metrics.misses.getCount());
+        assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
+                                           .isEqualTo(0);
+
+        BufferPool.get(65536, BufferType.OFF_HEAP);
+        tryRequestNegativeBufferSize();
+        tryRequestNegativeBufferSize();
+        tryRequestNegativeBufferSize();
+        tryRequestNegativeBufferSize();
+
+        assertEquals(0, metrics.misses.getCount());
+        assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
+                                           .isGreaterThanOrEqualTo(65536);
+    }
+
+    private void tryRequestNegativeBufferSize()
+    {
+        try
+        {
+            BufferPool.get(-1, BufferType.OFF_HEAP);
+            fail("Negative request size should have tossed an exception");
+        }
+        catch (IllegalArgumentException ignored)
+        {
+            // ignored
         }
     }
 }

@@ -34,7 +34,7 @@ import org.apache.cassandra.utils.memory.BufferPool;
 import org.apache.cassandra.utils.memory.BufferPoolTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
@@ -186,14 +186,7 @@ public class BufferPoolMetricsTest
 
     private void tryRequestNegativeBufferSize()
     {
-        try
-        {
-            BufferPool.get(-1, BufferType.OFF_HEAP);
-            fail("Negative request size should have tossed an exception");
-        }
-        catch (IllegalArgumentException ignored)
-        {
-            // ignored
-        }
+        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(
+        () -> BufferPool.get(-1, BufferType.OFF_HEAP));
     }
 }

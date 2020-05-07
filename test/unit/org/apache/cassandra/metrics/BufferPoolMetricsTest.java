@@ -18,6 +18,8 @@
 
 package org.apache.cassandra.metrics;
 
+import java.util.Random;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -68,17 +70,23 @@ public class BufferPoolMetricsTest
         // after the first request for a ByteBuffer and the idea from there will be to keep requesting them
         // until it bumps a second time at which point there should be some confidence that thie metric is
         // behaving as expected. these assertions should occur well within the first 256 ByteBuffer requests.
+        final long seed = System.currentTimeMillis();
+        final Random rand = new Random(seed);
+        final String assertionMessage = String.format("Failed with seed of %s", seed);
         final int maxIterations = 256;
-        final int bufferSize = 65536;
+        final int maxBufferSize = 65536;
+        int nextSizeToRequest;
         long totalBytesRequestedFromPool = 0;
         long initialSizeInBytesAfterZero = 0;
         boolean exitedBeforeMax = false;
         for (int ix = 0; ix < maxIterations; ix++)
         {
-            totalBytesRequestedFromPool = totalBytesRequestedFromPool + bufferSize;
-            BufferPool.get(bufferSize, BufferType.OFF_HEAP);
+            nextSizeToRequest = rand.nextInt(maxBufferSize) + 1;
+            totalBytesRequestedFromPool = totalBytesRequestedFromPool + nextSizeToRequest;
+            BufferPool.get(nextSizeToRequest, BufferType.OFF_HEAP);
 
-            assertThat(metrics.size.getValue()).isEqualTo(BufferPool.sizeInBytes())
+            assertThat(metrics.size.getValue()).as(assertionMessage)
+                                               .isEqualTo(BufferPool.sizeInBytes())
                                                .isGreaterThanOrEqualTo(totalBytesRequestedFromPool);
 
             if (initialSizeInBytesAfterZero == 0)
@@ -98,7 +106,7 @@ public class BufferPoolMetricsTest
             }
         }
 
-        assertThat(exitedBeforeMax).isTrue();
+        assertThat(exitedBeforeMax).as(assertionMessage).isTrue();
     }
 
     @Test

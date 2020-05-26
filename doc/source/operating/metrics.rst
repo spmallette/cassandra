@@ -78,83 +78,101 @@ Reported name format:
     There is a special table called '``all``' without a keyspace. This represents the aggregation of metrics across
     **all** tables and keyspaces on the node.
 
+.. NOTE::
+    Those metric names marked with an asterisk are also available as Keyspace metrics.
+
 
 ======================================= ============== ===========
 Name                                    Type           Description
 ======================================= ============== ===========
 MemtableOnHeapSize                      Gauge<Long>    Total amount of data stored in the memtable that resides **on**-heap, including column related overhead and partitions overwritten.
 MemtableOffHeapSize                     Gauge<Long>    Total amount of data stored in the memtable that resides **off**-heap, including column related overhead and partitions overwritten.
-MemtableLiveDataSize                    Gauge<Long>    Total amount of live data stored in the memtable, excluding any data structure overhead.
-AllMemtablesOnHeapSize                  Gauge<Long>    Total amount of data stored in the memtables (2i and pending flush memtables included) that resides **on**-heap.
+MemtableLiveDataSize*                   Gauge<Long>    Total amount of live data stored in the memtable, excluding any data structure overhead.
+AllMemtablesHeapSize                    Gauge<Long>    Total amount of data stored in the memtables (2i and pending flush memtables included) that resides **on**-heap.
 AllMemtablesOffHeapSize                 Gauge<Long>    Total amount of data stored in the memtables (2i and pending flush memtables included) that resides **off**-heap.
-AllMemtablesLiveDataSize                Gauge<Long>    Total amount of live data stored in the memtables (2i and pending flush memtables included) that resides off-heap, excluding any data structure overhead.
-MemtableColumnsCount                    Gauge<Long>    Total number of columns present in the memtable.
-MemtableSwitchCount                     Counter        Number of times flush has resulted in the memtable being switched out.
+AllMemtablesLiveDataSize*               Gauge<Long>    Total amount of live data stored in the memtables (2i and pending flush memtables included) that resides off-heap, excluding any data structure overhead.
+MemtableColumnsCount*                   Gauge<Long>    Total number of columns present in the memtable.
+MemtableSwitchCount*                    Counter        Number of times flush has resulted in the memtable being switched out.
 CompressionRatio                        Gauge<Double>  Current compression ratio for all SSTables.
 EstimatedPartitionSizeHistogram         Gauge<long[]>  Histogram of estimated partition size (in bytes).
 EstimatedPartitionCount                 Gauge<Long>    Approximate number of keys in table.
 EstimatedColumnCountHistogram           Gauge<long[]>  Histogram of estimated number of columns.
-SSTablesPerReadHistogram                Histogram      Histogram of the number of sstable data files accessed per single partition read. SSTables skipped due to Bloom Filters, min-max key or partition index lookup are not taken into acoount.
-ReadLatency                             Latency        Local read latency for this table.
-RangeLatency                            Latency        Local range scan latency for this table.
-WriteLatency                            Latency        Local write latency for this table.
+SSTablesPerReadHistogram*               Histogram      Histogram of the number of sstable data files accessed per single partition read. SSTables skipped due to Bloom Filters, min-max key or partition index lookup are not taken into acoount.
+ReadLatency*                            Latency        Local read latency for this table.
+RangeLatency*                           Latency        Local range scan latency for this table.
+WriteLatency*                           Latency        Local write latency for this table.
 CoordinatorReadLatency                  Timer          Coordinator read latency for this table.
 CoordinatorWriteLatency                 Timer          Coordinator write latency for this table.
 CoordinatorScanLatency                  Timer          Coordinator range scan latency for this table.
-PendingFlushes                          Counter        Estimated number of flush tasks pending for this table.
+PendingFlushes*                         Counter        Estimated number of flush tasks pending for this table.
 BytesFlushed                            Counter        Total number of bytes flushed since server [re]start.
 CompactionBytesWritten                  Counter        Total number of bytes written by compaction since server [re]start.
-PendingCompactions                      Gauge<Integer> Estimate of number of pending compactions for this table.
+PendingCompactions*                     Gauge<Integer> Estimate of number of pending compactions for this table.
 LiveSSTableCount                        Gauge<Integer> Number of SSTables on disk for this table.
-LiveDiskSpaceUsed                       Counter        Disk space used by SSTables belonging to this table (in bytes).
-TotalDiskSpaceUsed                      Counter        Total disk space used by SSTables belonging to this table, including obsolete ones waiting to be GC'd.
+LiveDiskSpaceUsed*                      Counter        Disk space used by SSTables belonging to this table (in bytes).
+TotalDiskSpaceUsed*                     Counter        Total disk space used by SSTables belonging to this table, including obsolete ones waiting to be GC'd.
 MinPartitionSize                        Gauge<Long>    Size of the smallest compacted partition (in bytes).
 MaxPartitionSize                        Gauge<Long>    Size of the largest compacted partition (in bytes).
 MeanPartitionSize                       Gauge<Long>    Size of the average compacted partition (in bytes).
 BloomFilterFalsePositives               Gauge<Long>    Number of false positives on table's bloom filter.
 BloomFilterFalseRatio                   Gauge<Double>  False positive ratio of table's bloom filter.
-BloomFilterDiskSpaceUsed                Gauge<Long>    Disk space used by bloom filter (in bytes).
-BloomFilterOffHeapMemoryUsed            Gauge<Long>    Off-heap memory used by bloom filter.
-IndexSummaryOffHeapMemoryUsed           Gauge<Long>    Off-heap memory used by index summary.
-CompressionMetadataOffHeapMemoryUsed    Gauge<Long>    Off-heap memory used by compression meta data.
+BloomFilterDiskSpaceUsed*               Gauge<Long>    Disk space used by bloom filter (in bytes).
+BloomFilterOffHeapMemoryUsed*           Gauge<Long>    Off-heap memory used by bloom filter.
+IndexSummaryOffHeapMemoryUsed*          Gauge<Long>    Off-heap memory used by index summary.
+CompressionMetadataOffHeapMemoryUsed*   Gauge<Long>    Off-heap memory used by compression meta data.
 KeyCacheHitRate                         Gauge<Double>  Key cache hit rate for this table.
-TombstoneScannedHistogram               Histogram      Histogram of tombstones scanned in queries on this table.
-LiveScannedHistogram                    Histogram      Histogram of live cells scanned in queries on this table.
-ColUpdateTimeDeltaHistogram             Histogram      Histogram of column update time delta on this table.
-ViewLockAcquireTime                     Timer          Time taken acquiring a partition lock for materialized view updates on this table.
-ViewReadTime                            Timer          Time taken during the local read of a materialized view update.
-TrueSnapshotsSize                       Gauge<Long>    Disk space used by snapshots of this table including all SSTable components.
+TombstoneScannedHistogram*              Histogram      Histogram of tombstones scanned in queries on this table.
+LiveScannedHistogram*                   Histogram      Histogram of live cells scanned in queries on this table.
+ColUpdateTimeDeltaHistogram*            Histogram      Histogram of column update time delta on this table.
+ViewLockAcquireTime*                    Timer          Time taken acquiring a partition lock for materialized view updates on this table.
+ViewReadTime*                           Timer          Time taken during the local read of a materialized view update.
+SnapshotsSize                           Gauge<Long>    Disk space used by snapshots of this table including all SSTable components.
 RowCacheHitOutOfRange                   Counter        Number of table row cache hits that do not satisfy the query filter, thus went to disk.
 RowCacheHit                             Counter        Number of table row cache hits.
 RowCacheMiss                            Counter        Number of table row cache misses.
-CasPrepare                              Latency        Latency of paxos prepare round.
-CasPropose                              Latency        Latency of paxos propose round.
-CasCommit                               Latency        Latency of paxos commit round.
+CasPrepare*                             Latency        Latency of paxos prepare round.
+CasPropose*                             Latency        Latency of paxos propose round.
+CasCommit*                              Latency        Latency of paxos commit round.
 PercentRepaired                         Gauge<Double>  Percent of table data that is repaired on disk.
 BytesRepaired                           Gauge<Long>    Size of table data repaired on disk
 BytesUnrepaired                         Gauge<Long>    Size of table data unrepaired on disk
 BytesPendingRepair                      Gauge<Long>    Size of table data isolated for an ongoing incremental repair
-SpeculativeRetries                      Counter        Number of times speculative retries were sent for this table.
-SpeculativeFailedRetries                Counter        Number of speculative retries that failed to prevent a timeout
-SpeculativeInsufficientReplicas         Counter        Number of speculative retries that couldn't be attempted due to lack of replicas
+SpeculativeRetries*                     Counter        Number of times speculative retries were sent for this table.
+SpeculativeFailedRetries*               Counter        Number of speculative retries that failed to prevent a timeout
+SpeculativeInsufficientReplicas*        Counter        Number of speculative retries that couldn't be attempted due to lack of replicas
 SpeculativeSampleLatencyNanos           Gauge<Long>    Number of nanoseconds to wait before speculation is attempted. Value may be statically configured or updated periodically based on coordinator latency.
 WaitingOnFreeMemtableSpace              Histogram      Histogram of time spent waiting for free memtable space, either on- or off-heap.
 DroppedMutations                        Counter        Number of dropped mutations on this table.
-AnticompactionTime                      Timer          Time spent anticompacting before a consistent repair.
-ValidationTime                          Timer          Time spent doing validation compaction during repair.
+AnticompactionTime*                     Timer          Time spent anticompacting before a consistent repair.
+ValidationTime*                         Timer          Time spent doing validation compaction during repair.
 SyncTime                                Timer          Time spent doing streaming during repair.
-BytesValidated                          Histogram      Histogram over the amount of bytes read during validation.
-PartitionsValidated                     Histogram      Histogram over the number of partitions read during validation.
+RepairJobsCompleted*                    Counter        Number of repair jobs completed.
+RepairJobsStarted*                      Counter        Number of repair jobs started.
+BytesValidated*                         Histogram      Histogram over the amount of bytes read during validation.
+PartitionsValidated*                    Histogram      Histogram over the number of partitions read during validation.
 BytesAnticompacted                      Counter        How many bytes we anticompacted.
 BytesMutatedAnticompaction              Counter        How many bytes we avoided anticompacting because the sstable was fully contained in the repaired range.
 MutatedAnticompactionGauge              Gauge<Double>  Ratio of bytes mutated vs total bytes repaired.
+RepairedDataTrackingOverreadRows        Histogram      Tracks the amount overreading of repaired data replicas perform in order to produce digests at query time.
+RepairedDataTrackingOverreadTime        Histogram      Tracks the amount overreading time of repaired data replicas perform in order to produce digests at query time.
+RepairedDataInconsistenciesConfirmed*   Meter          Incremented where an inconsistency is detected and there are no pending repair sessions affecting the data being read, indicating a genuine mismatch between replicas' repaired data sets.
+RepairedDataInconsistenciesUnconfirmed* Meter          Incremented where an inconsistency is detected, but there are pending & uncommitted repair sessions in play on at least one replica.
+RecentBloomFilterFalsePositives         Gauge<Long>    Number of false positives in bloom filter from last read.
+RecentBloomFilterFalseRatio             Gauge<Long>    False positive ratio of bloom filter from last read.
+AdditionalWrites*                       Counter        Number of writes to a transient replica to satisfy quorum.
+AdditionalWriteLatencyNanos             Guage<Long>    Latency in nanoseconds of writes to a transient replica to satisfy quorum.
+OldVersionSSTableCount                  Guage<Integer> Number of SSTables with old version on disk for this CF.
+ShortReadProtectionRequests             Meter          Number of short read protection requests.
+TombstoneFailures                       Counter        Number of tombstone read failures.
+TomstoneWarnings                        Counter        Number of tombstone read warnings.
+UnleveledSSTables                       Gauge<Integer> Number of unlevelled SS tables.
 ======================================= ============== ===========
 
 Keyspace Metrics
 ^^^^^^^^^^^^^^^^
 Each keyspace in Cassandra has metrics responsible for tracking its state and performance.
 
-Most of these metrics are the same as the ``Table Metrics`` above, only they are aggregated at the Keyspace level. The keyspace specific metrics are specified in the table below.
+Most of these metrics are the same as the ``Table Metrics`` above (as denoted by an asterisk in the table), only they are aggregated at the Keyspace level. The keyspace specific metrics are specified in the table below.
 
 Reported name format:
 
@@ -168,10 +186,17 @@ Reported name format:
 ======================================= ============== ===========
 Name                                    Type           Description
 ======================================= ============== ===========
+MemtableOnHeapDataSize                  Gauge<Long>    Total amount of data stored in the memtable that resides **on**-heap, including column related overhead and partitions overwritten.
+MemtableOffHeapDataSize                 Gauge<Long>    Total amount of data stored in the memtable that resides **off**-heap, including column related overhead and partitions overwritten.
+AllMemtablesOnHeapDataSize              Gauge<Long>    Total amount of data stored in the memtables (2i and pending flush memtables included) that resides **on**-heap.
+AllMemtablesOffHeapDataSize             Gauge<Long>    Total amount of data stored in the memtables (2i and pending flush memtables included) that resides **off**-heap.
 WriteFailedIdeaCL                       Counter        Number of writes that failed to achieve the configured ideal consistency level or 0 if none is configured
 IdealCLWriteLatency                     Latency        Coordinator latency of writes at the configured ideal consistency level. No values are recorded if ideal consistency level is not configured
 RepairTime                              Timer          Total time spent as repair coordinator.
 RepairPrepareTime                       Timer          Total time spent preparing for repair.
+RepairSyncTime                          Timer          Time spent doing streaming during repair.
+RepairedOverreadRows                    Histogram      Tracks the amount overreading of repaired data replicas perform in order to produce digests at query time.
+RepairedOverreadTime                    Timer          Tracks the amount overreading time of repaired data replicas perform in order to produce digests at query time.
 ======================================= ============== ===========
 
 ThreadPool Metrics
@@ -266,6 +291,7 @@ Reported name format:
     UnfinishedCommit      Counter        Number of transactions that were committed on read.
     ConditionNotMet       Counter        Number of transaction preconditions did not match current values.
     ContentionHistogram   Histogram      How many contended reads were encountered
+    UnknownResult         Meter
     ===================== ============== =============================================================
 
 :RequestType: CASWrite
@@ -277,15 +303,17 @@ Reported name format:
     Timeouts              Counter        Number of timeouts encountered.
     Failures              Counter        Number of transaction failures encountered.
     |nbsp|                Latency        Transaction write latency.
+    Unavailables          Counter        Number of unavailable exceptions encountered.
     UnfinishedCommit      Counter        Number of transactions that were committed on write.
     ConditionNotMet       Counter        Number of transaction preconditions did not match current values.
     ContentionHistogram   Histogram      How many contended writes were encountered
     MutationSizeHistogram Histogram      Total size in bytes of the requests mutations.
+    UnknownResult         Meter
     ===================== ============== =============================================================
 
 
 :RequestType: Read
-:Description: Metrics related to standard read requests.
+:Description: Metrics related to standard read requests. This scope is further suffixed by the various consistency levels (e.g. ANY, ONE, LOCAL_QUORUM, etc.).
 :Metrics:
     ===================== ============== =============================================================
     Name                  Type           Description
@@ -309,7 +337,7 @@ Reported name format:
     ===================== ============== =============================================================
 
 :RequestType: Write
-:Description: Metrics related to regular write requests.
+:Description: Metrics related to regular write requests. This scope is further suffixed by the various consistency levels (e.g. ANY, ONE, LOCAL_QUORUM, etc.).
 :Metrics:
     ===================== ============== =============================================================
     Name                  Type           Description
@@ -326,6 +354,7 @@ Reported name format:
 :Description: Metrics related to materialized view write wrtes.
 :Metrics:
     ===================== ============== =============================================================
+    |nbsp|                Latency        Write latency.
     Timeouts              Counter        Number of timeouts encountered.
     Failures              Counter        Number of transaction failures encountered.
     Unavailables          Counter        Number of unavailable exceptions encountered.

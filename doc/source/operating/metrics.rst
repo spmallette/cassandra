@@ -565,6 +565,7 @@ Exceptions                 Counter        Number of internal exceptions caught. 
 Load                       Counter        Size, in bytes, of the on disk data size this node manages.
 TotalHints                 Counter        Number of hint messages written to this node since [re]start. Includes one entry for each host to be hinted per hint.
 TotalHintsInProgress       Counter        Number of hints attemping to be sent currently.
+RepairExceptions           Counter        Number of repair exceptions.
 ========================== ============== ===========
 
 .. _handoff-metrics:
@@ -658,9 +659,71 @@ Reported name format:
 Name                        Type           Description
 =========================== ============== ===========
 Size                        Gauge<Long>    Size, in bytes, of the managed buffer pool
-Misses                      Meter           The rate of misses in the pool. The higher this is the more allocations incurred.
+Misses                      Meter          The rate of misses in the pool. The higher this is the more allocations incurred.
 =========================== ============== ===========
 
+MemtablePool Metrics
+^^^^^^^^^^^^^^^^^^^^
+
+Metrics specific to memory allocated through child ``MemtableAllocator` instance.
+
+Reported name format:
+
+**Metric Name**
+    ``org.apache.cassandra.metrics.MemtablePool.<MetricName>``
+
+**JMX MBean**
+    ``org.apache.cassandra.metrics:type=MemtablePool name=<MetricName>``
+
+=========================== ============== ===========
+Name                        Type           Description
+=========================== ============== ===========
+BlockedOnAllocation         Timer
+=========================== ============== ===========
+
+Repair Metrics
+^^^^^^^^^^^^^^
+
+Metrics related to ``Repair`` work.
+
+Reported name format:
+
+**Metric Name**
+    ``org.apache.cassandra.metrics.Repair.<MetricName>``
+
+**JMX MBean**
+    ``org.apache.cassandra.metrics:type=Repair name=<MetricName>``
+
+================================== ======================================== ===============================================
+Name                               Type                                     Description
+================================== ======================================== ===============================================
+PreviewFailures                    Counter                                  Number of failures with previewed repairs.
+================================== ======================================== ===============================================
+
+ReadRepair Metrics
+^^^^^^^^^^^^^^^^^^
+
+Metrics related to ``ReadRepair`` work.
+
+Reported name format:
+
+**Metric Name**
+    ``org.apache.cassandra.metrics.ReadRepair.<MetricName>``
+
+**JMX MBean**
+    ``org.apache.cassandra.metrics:type=ReadRepair name=<MetricName>``
+
+================================== ======================================== ===============================================
+Name                               Type                                     Description
+================================== ======================================== ===============================================
+Attempted                          Meter
+ReconcileRead                      Meter
+RepairedAsync                      Meter
+RepairedBackground                 Meter
+RepairedBlocking                   Meter
+SpeculatedRead                     Meter
+SpeculatedWrite                    Meter
+================================== ======================================== ===============================================
 
 Client Metrics
 ^^^^^^^^^^^^^^

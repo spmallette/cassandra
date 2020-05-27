@@ -611,9 +611,9 @@ Reported name format:
 =========================== ============== ===========
 Name                        Type           Description
 =========================== ============== ===========
-HintsSucceeded               Meter          A meter of the hints successfully delivered
-HintsFailed                  Meter          A meter of the hints that failed deliver
-HintsTimedOut                Meter          A meter of the hints that timed out
+HintsSucceeded              Meter          A meter of the hints successfully delivered
+HintsFailed                 Meter          A meter of the hints that failed deliver
+HintsTimedOut               Meter          A meter of the hints that timed out
 Hint_delays                 Histogram      Histogram of hint delivery delays (in milliseconds)
 Hint_delays-<PeerIP>        Histogram      Histogram of hint delivery delays (in milliseconds) per peer
 =========================== ============== ===========
@@ -637,6 +637,7 @@ Name                        Type           Description
 IndexedEntrySize            Histogram      Histogram of the on-heap size, in bytes, of the index across all SSTables.
 IndexInfoCount              Histogram      Histogram of the number of on-heap index entries managed across all SSTables.
 IndexInfoGets               Histogram      Histogram of the number index seeks performed per SSTable.
+IndexInfoReads              Histogram
 =========================== ============== ===========
 
 BufferPool Metrics
@@ -680,11 +681,11 @@ Name                           Type                                    Descripti
 connectedNativeClients         Gauge<Integer>                          Number of clients connected to this nodes native protocol server
 connections                    Gauge<List<Map<String, String>>         List of all connections and their state information
 connectedNativeClientsByUser   Gauge<Map<String, Int>                  Number of connnective native clients by username
-AuthFailure                    Meter                                   Number of authentication failures.
-AuthSuccess                    Meter                                   Number of authentication successes.
+AuthFailure                    Meter                                   A meter of authentication failures.
+AuthSuccess                    Meter                                   A meter of authentication successes.
 clientsByProtocolVersion       Guage<<List<<Map<String, String>>>      List of clients by the protocol version used.
 PausedConnections              Guage<Integer>                          Number of paused connections.
-RequestDiscarded               Meter                                   Number of requests discarded.
+RequestDiscarded               Meter                                   A meter of requests discarded.
 ============================== ======================================= ===========
 
 

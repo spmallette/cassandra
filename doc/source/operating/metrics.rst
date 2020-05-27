@@ -430,6 +430,92 @@ RegularStatementsExecuted  Counter        Number of **non** prepared statements 
 PreparedStatementsRatio    Gauge<Double>  Percentage of statements that are prepared vs unprepared.
 ========================== ============== ===========
 
+Messaging Metrics
+^^^^^^^^^^^^^^^^^
+
+Metrics specific to messaging for different types of requests.
+
+Reported name format:
+
+**Metric Name**
+    ``org.apache.cassandra.metrics.Messaging.<MetricName>``
+
+**JMX MBean**
+    ``org.apache.cassandra.metrics:type=Messaging name=<MetricName>``
+
+======================================== ============== ===========
+Name                                     Type           Description
+======================================== ============== ===========
+CrossNodeLatency                         Timer          The latency across nodes.
+<DC>-Latency                             Timer          Data center latency where <DC> is the data center name.
+MUTATION_RSP-WaitLatency                 Timer
+MUTATION_REQ-WaitLatency                 Timer
+HINT_RSP-WaitLatency                     Timer
+HINT_REQ-WaitLatency                     Timer
+READ_REPAIR_RSP-WaitLatency              Timer
+READ_REPAIR_REQ-WaitLatency              Timer
+BATCH_STORE_RSP-WaitLatency              Timer
+BATCH_STORE_REQ-WaitLatency              Timer
+BATCH_REMOVE_RSP-WaitLatency             Timer
+BATCH_REMOVE_REQ-WaitLatency             Timer
+PAXOS_PREPARE_RSP-WaitLatency            Timer
+PAXOS_PREPARE_REQ-WaitLatency            Timer
+PAXOS_PROPOSE_RSP-WaitLatency            Timer
+PAXOS_PROPOSE_REQ-WaitLatency            Timer
+PAXOS_COMMIT_RSP-WaitLatency             Timer
+PAXOS_COMMIT_REQ-WaitLatency             Timer
+TRUNCATE_RSP-WaitLatency                 Timer
+TRUNCATE_REQ-WaitLatency                 Timer
+COUNTER_MUTATION_RSP-WaitLatency         Timer
+COUNTER_MUTATION_REQ-WaitLatency         Timer
+READ_RSP-WaitLatency                     Timer
+READ_REQ-WaitLatency                     Timer
+RANGE_RSP-WaitLatency                    Timer
+RANGE_REQ-WaitLatency                    Timer
+GOSSIP_DIGEST_SYN-WaitLatency            Timer
+GOSSIP_DIGEST_ACK-WaitLatency            Timer
+GOSSIP_DIGEST_ACK2-WaitLatency           Timer
+GOSSIP_SHUTDOWN-WaitLatency              Timer
+ECHO_RSP-WaitLatency                     Timer
+ECHO_REQ-WaitLatency                     Timer
+PING_RSP-WaitLatency                     Timer
+PING_REQ-WaitLatency                     Timer
+SCHEMA_PUSH_RSP-WaitLatency              Timer
+SCHEMA_PUSH_REQ-WaitLatency              Timer
+SCHEMA_PULL_RSP-WaitLatency              Timer
+SCHEMA_PULL_REQ-WaitLatency              Timer
+SCHEMA_VERSION_RSP-WaitLatency           Timer
+SCHEMA_VERSION_REQ-WaitLatency           Timer
+REPAIR_RSP-WaitLatency                   Timer
+VALIDATION_RSP-WaitLatency               Timer
+VALIDATION_REQ-WaitLatency               Timer
+SYNC_RSP-WaitLatency                     Timer
+SYNC_REQ-WaitLatency                     Timer
+PREPARE_MSG-WaitLatency                  Timer
+SNAPSHOT_MSG-WaitLatency                 Timer
+CLEANUP_MSG-WaitLatency                  Timer
+PREPARE_CONSISTENT_RSP-WaitLatency       Timer
+PREPARE_CONSISTENT_REQ-WaitLatency       Timer
+FINALIZE_PROPOSE_MSG-WaitLatency         Timer
+FINALIZE_PROMISE_MSG-WaitLatency         Timer
+FINALIZE_COMMIT_MSG-WaitLatency          Timer
+FAILED_SESSION_MSG-WaitLatency           Timer
+STATUS_RSP-WaitLatency                   Timer
+STATUS_REQ-WaitLatency                   Timer
+ASYMMETRIC_SYNC_REQ-WaitLatency          Timer
+REPLICATION_DONE_RSP-WaitLatency         Timer
+REPLICATION_DONE_REQ-WaitLatency         Timer
+SNAPSHOT_RSP-WaitLatency                 Timer
+SNAPSHOT_REQ-WaitLatency                 Timer
+FAILURE_RSP-WaitLatency                  Timer
+_TRACE-WaitLatency                       Timer
+_SAMPLE-WaitLatency                      Timer
+_TEST_1-WaitLatency                      Timer
+_TEST_2-WaitLatency                      Timer
+REQUEST_RSP-WaitLatency                  Timer          (deprecated)
+INTERNAL_RSP-WaitLatency                 Timer          (deprecated)
+======================================== ============== ===========
+
 .. _dropped-metrics:
 
 DroppedMessage Metrics
@@ -454,22 +540,78 @@ InternalDroppedLatency     Timer          The dropped latency within node.
 Dropped                    Meter          Number of dropped messages.
 ========================== ============== ===========
 
-The different types of messages tracked are:
+The different types of messages tracked are as follows and are suffixed with "_REQ" or "_RSP" for "request" and
+"response respectively":
 
 ============================ ===========
 Name                         Description
 ============================ ===========
-BATCH_STORE                  Batchlog write
-BATCH_REMOVE                 Batchlog cleanup (after succesfully applied)
-COUNTER_MUTATION             Counter writes
-HINT                         Hint replay
-MUTATION                     Regular writes
-READ                         Regular reads
-READ_REPAIR                  Read repair
-PAGED_SLICE                  Paged read
-RANGE_SLICE                  Token range read
-REQUEST_RESPONSE             RPC Callbacks
+MUTATION_RSP                 Regular writes response.
+MUTATION_REQ                 Regular writes request.
+HINT_RSP                     Hint replay response.
+HINT_REQ                     Hint replay request.
+READ_REPAIR_RSP              Read repair response.
+READ_REPAIR_REQ              Read repair request.
+BATCH_STORE_RSP              Batchlog write response.
+BATCH_STORE_REQ              Batchlog write request.
+BATCH_REMOVE_RSP             Batchlog cleanup (after succesfully applied) response.
+BATCH_REMOVE_REQ             Batchlog cleanup (after succesfully applied) request.
+PAXOS_PREPARE_RSP
+PAXOS_PREPARE_REQ
+PAXOS_PROPOSE_RSP
+PAXOS_PROPOSE_REQ
+PAXOS_COMMIT_RSP
+PAXOS_COMMIT_REQ
+TRUNCATE_RSP
+TRUNCATE_REQ
+COUNTER_MUTATION_RSP         Counter writes response.
+COUNTER_MUTATION_REQ         Counter writes request.
+READ_RSP                     Regular reads response.
+READ_REQ                     Regular reads request.
+RANGE_RSP
+RANGE_REQ
+GOSSIP_DIGEST_SYN
+GOSSIP_DIGEST_ACK
+GOSSIP_DIGEST_ACK2
+GOSSIP_SHUTDOWN
+ECHO_RSP
+ECHO_REQ
+PING_RSP
+PING_REQ
+SCHEMA_PUSH_RSP
+SCHEMA_PUSH_REQ
+SCHEMA_PULL_RSP
+SCHEMA_PULL_REQ
+SCHEMA_VERSION_RSP
+SCHEMA_VERSION_REQ
+REPAIR_RSP
+VALIDATION_RSP
+VALIDATION_REQ
+SYNC_RSP
+SYNC_REQ
+PREPARE_MSG
+SNAPSHOT_MSG
+CLEANUP_MSG
+PREPARE_CONSISTENT_RSP
+PREPARE_CONSISTENT_REQ
+FINALIZE_PROPOSE_MSG
+FINALIZE_PROMISE_MSG
+FINALIZE_COMMIT_MSG
+FAILED_SESSION_MSG
+STATUS_RSP
+STATUS_REQ
+ASYMMETRIC_SYNC_REQ
+REPLICATION_DONE_RSP
+REPLICATION_DONE_REQ
+SNAPSHOT_RSP
+SNAPSHOT_REQ
+FAILURE_RSP
 _TRACE                       Tracing writes
+_SAMPLE
+_TEST_1
+_TEST_2
+REQUEST_RSP                  RPC Callbacks (deprecated)
+INTERNAL_RSP
 ============================ ===========
 
 Streaming Metrics
@@ -716,10 +858,10 @@ Reported name format:
 ================================== ======================================== ===============================================
 Name                               Type                                     Description
 ================================== ======================================== ===============================================
-Attempted                          Meter
+Attempted                          Meter                                    (deprecated)
 ReconcileRead                      Meter
 RepairedAsync                      Meter
-RepairedBackground                 Meter
+RepairedBackground                 Meter                                    (deprecated)
 RepairedBlocking                   Meter
 SpeculatedRead                     Meter
 SpeculatedWrite                    Meter

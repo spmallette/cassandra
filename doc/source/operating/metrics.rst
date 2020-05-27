@@ -674,13 +674,18 @@ Reported name format:
 **JMX MBean**
     ``org.apache.cassandra.metrics:type=Client name=<MetricName>``
 
-============================== =============================== ===========
-Name                           Type                            Description
-============================== =============================== ===========
-connectedNativeClients         Gauge<Integer>                  Number of clients connected to this nodes native protocol server
-connections                    Gauge<List<Map<String, String>> List of all connections and their state information
-connectedNativeClientsByUser   Gauge<Map<String, Int>          Number of connnective native clients by username
-============================== =============================== ===========
+============================== ======================================= ===========
+Name                           Type                                    Description
+============================== ======================================= ===========
+connectedNativeClients         Gauge<Integer>                          Number of clients connected to this nodes native protocol server
+connections                    Gauge<List<Map<String, String>>         List of all connections and their state information
+connectedNativeClientsByUser   Gauge<Map<String, Int>                  Number of connnective native clients by username
+AuthFailure                    Meter                                   Number of authentication failures.
+AuthSuccess                    Meter                                   Number of authentication successes.
+clientsByProtocolVersion       Guage<<List<<Map<String, String>>>      List of clients by the protocol version used.
+PausedConnections              Guage<Integer>                          Number of paused connections.
+RequestDiscarded               Meter                                   Number of requests discarded.
+============================== ======================================= ===========
 
 
 Batch Metrics

@@ -508,15 +508,19 @@ Reported name format:
 **JMX MBean**
     ``org.apache.cassandra.metrics:type=Compaction name=<MetricName>``
 
-========================== ======================================== ===============================================
-Name                       Type                                     Description
-========================== ======================================== ===============================================
-BytesCompacted             Counter                                  Total number of bytes compacted since server [re]start.
-PendingTasks               Gauge<Integer>                           Estimated number of compactions remaining to perform.
-CompletedTasks             Gauge<Long>                              Number of completed compactions since server [re]start.
-TotalCompactionsCompleted  Meter                                    Throughput of completed compactions since server [re]start.
-PendingTasksByTableName    Gauge<Map<String, Map<String, Integer>>> Estimated number of compactions remaining to perform, grouped by keyspace and then table name. This info is also kept in ``Table Metrics``.
-========================== ======================================== ===============================================
+================================== ======================================== ===============================================
+Name                               Type                                     Description
+================================== ======================================== ===============================================
+BytesCompacted                     Counter                                  Total number of bytes compacted since server [re]start.
+PendingTasks                       Gauge<Integer>                           Estimated number of compactions remaining to perform.
+CompletedTasks                     Gauge<Long>                              Number of completed compactions since server [re]start.
+TotalCompactionsCompleted          Meter                                    Throughput of completed compactions since server [re]start.
+PendingTasksByTableName            Gauge<Map<String, Map<String, Integer>>> Estimated number of compactions remaining to perform, grouped by keyspace and then table name. This info is also kept in ``Table Metrics``.
+CompactionsAborted                 Counter                                  Total number of compactions which have outright failed due to lack of disk space.
+CompactionsReduced                 Counter                                  Total number of compactions that have had sstables drop out of them.
+PendingTasks                       Guage<Integer>                           Estimated number of compactions remaining to perform.
+SSTablesDroppedFromCompaction      Counter                                  Total number of sstables that have been dropped out.
+================================== ======================================== ===============================================
 
 CommitLog Metrics
 ^^^^^^^^^^^^^^^^^

@@ -66,15 +66,15 @@ public class TableMetrics
     public static final long[] EMPTY = new long[0];
 
     /** Total amount of data stored in the memtable that resides on-heap, including column related overhead and partitions overwritten. */
-    public final Gauge<Long> memtableOnHeapSize;
+    public final Gauge<Long> memtableOnHeapDataSize;
     /** Total amount of data stored in the memtable that resides off-heap, including column related overhead and partitions overwritten. */
-    public final Gauge<Long> memtableOffHeapSize;
+    public final Gauge<Long> memtableOffHeapDataSize;
     /** Total amount of live data stored in the memtable, excluding any data structure overhead */
     public final Gauge<Long> memtableLiveDataSize;
     /** Total amount of data stored in the memtables (2i and pending flush memtables included) that resides on-heap. */
-    public final Gauge<Long> allMemtablesOnHeapSize;
+    public final Gauge<Long> allMemtablesOnHeapDataSize;
     /** Total amount of data stored in the memtables (2i and pending flush memtables included) that resides off-heap. */
-    public final Gauge<Long> allMemtablesOffHeapSize;
+    public final Gauge<Long> allMemtablesOffHeapDataSize;
     /** Total amount of live data stored in the memtables (2i and pending flush memtables included) that resides off-heap, excluding any data structure overhead */
     public final Gauge<Long> allMemtablesLiveDataSize;
     /** Total number of columns present in the memtable. */
@@ -184,7 +184,7 @@ public class TableMetrics
     /** time spent creating merkle trees */
     public final TableTimer validationTime;
     /** time spent syncing data in a repair */
-    public final TableTimer syncTime;
+    public final TableTimer repairSyncTime;
     /** approximate number of bytes read while creating merkle trees */
     public final TableHistogram bytesValidated;
     /** number of partitions read creating merkle trees */
@@ -441,20 +441,24 @@ public class TableMetrics
                 return cfs.getTracker().getView().getCurrentMemtable().getOperations();
             }
         });
-        memtableOnHeapSize = createTableGauge("MemtableOnHeapSize", new Gauge<Long>()
+
+        // MemtableOnHeapSize naming deprecated in 4.0
+        memtableOnHeapDataSize = createTableGauge("MemtableOnHeapDataSize", "MemtableOnHeapDataSize", "MemtableOnHeapSize", new Gauge<Long>()
         {
             public Long getValue()
             {
                 return cfs.getTracker().getView().getCurrentMemtable().getAllocator().onHeap().owns();
             }
-        });
-        memtableOffHeapSize = createTableGauge("MemtableOffHeapSize", new Gauge<Long>()
+        }, new GlobalTableGauge("MemtableOnHeapDataSize"));
+
+        // MemtableOffHeapSize naming deprecated in 4.0
+        memtableOffHeapDataSize = createTableGauge("MemtableOffHeapDataSize", "MemtableOffHeapDataSize", "MemtableOffHeapSize", new Gauge<Long>()
         {
             public Long getValue()
             {
                 return cfs.getTracker().getView().getCurrentMemtable().getAllocator().offHeap().owns();
             }
-        });
+        }, new GlobalTableGauge("MemtableOnHeapDataSize"));
         memtableLiveDataSize = createTableGauge("MemtableLiveDataSize", new Gauge<Long>()
         {
             public Long getValue()
@@ -462,7 +466,9 @@ public class TableMetrics
                 return cfs.getTracker().getView().getCurrentMemtable().getLiveDataSize();
             }
         });
-        allMemtablesOnHeapSize = createTableGauge("AllMemtablesHeapSize", new Gauge<Long>()
+
+        // AllMemtablesHeapSize naming deprecated in 4.0
+        allMemtablesOnHeapDataSize = createTableGauge("AllMemtablesOnHeapDataSize", "AllMemtablesOnHeapDataSize", "AllMemtablesHeapSize", new Gauge<Long>()
         {
             public Long getValue()
             {
@@ -471,8 +477,10 @@ public class TableMetrics
                     size += cfs2.getTracker().getView().getCurrentMemtable().getAllocator().onHeap().owns();
                 return size;
             }
-        });
-        allMemtablesOffHeapSize = createTableGauge("AllMemtablesOffHeapSize", new Gauge<Long>()
+        }, new GlobalTableGauge("AllMemtablesOnHeapDataSize"));
+
+        // AllMemtablesOffHeapSize naming deprecated in 4.0
+        allMemtablesOffHeapDataSize = createTableGauge("AllMemtablesOffHeapDataSize", "AllMemtablesOffHeapDataSize", "AllMemtablesOffHeapSize", new Gauge<Long>()
         {
             public Long getValue()
             {
@@ -481,7 +489,7 @@ public class TableMetrics
                     size += cfs2.getTracker().getView().getCurrentMemtable().getAllocator().offHeap().owns();
                 return size;
             }
-        });
+        }, new GlobalTableGauge("AllMemtablesOffHeapDataSize"));
         allMemtablesLiveDataSize = createTableGauge("AllMemtablesLiveDataSize", new Gauge<Long>()
         {
             public Long getValue()
@@ -925,7 +933,7 @@ public class TableMetrics
 
         anticompactionTime = createTableTimer("AnticompactionTime", cfs.keyspace.metric.anticompactionTime);
         validationTime = createTableTimer("ValidationTime", cfs.keyspace.metric.validationTime);
-        syncTime = createTableTimer("SyncTime", cfs.keyspace.metric.repairSyncTime);
+        repairSyncTime = createTableTimer("RepairSyncTime", "RepairSyncTime", "SyncTime", cfs.keyspace.metric.repairSyncTime);
 
         bytesValidated = createTableHistogram("BytesValidated", cfs.keyspace.metric.bytesValidated, false);
         partitionsValidated = createTableHistogram("PartitionsValidated", cfs.keyspace.metric.partitionsValidated, false);
@@ -977,25 +985,13 @@ public class TableMetrics
         }
     }
 
-
     /**
      * Create a gauge that will be part of a merged version of all column families.  The global gauge
      * will merge each CF gauge by adding their values
      */
     protected <T extends Number> Gauge<T> createTableGauge(final String name, Gauge<T> gauge)
     {
-        return createTableGauge(name, gauge, new Gauge<Long>()
-        {
-            public Long getValue()
-            {
-                long total = 0;
-                for (Metric cfGauge : allTableMetrics.get(name))
-                {
-                    total = total + ((Gauge<? extends Number>) cfGauge).getValue().longValue();
-                }
-                return total;
-            }
-        });
+        return createTableGauge(name, gauge, new GlobalTableGauge(name));
     }
 
     /**
@@ -1013,6 +1009,30 @@ public class TableMetrics
         if (register(name, alias, cfGauge) && globalGauge != null)
         {
             Metrics.register(globalFactory.createMetricName(name), globalAliasFactory.createMetricName(alias), globalGauge);
+        }
+        return cfGauge;
+    }
+
+    /**
+     * Same as {@link #createTableGauge(String, String, Gauge, Gauge)} but includes the ability to include a deprecated
+     * name for a table {@code Gauge}. Prefer that method when deprecation is not necessary.
+     *
+     * @param deprecated The name of the deprecated metric cannot be {@code null}
+     */
+    protected <G,T> Gauge<T> createTableGauge(String name, String alias, String deprecated, Gauge<T> gauge,
+                                              Gauge<G> globalGauge)
+    {
+        assert deprecated != null;
+        Gauge<T> cfGauge = Metrics.register(factory.createMetricName(name), gauge,
+                                            aliasFactory.createMetricName(alias),
+                                            factory.createMetricName(deprecated),
+                                            aliasFactory.createMetricName(deprecated));
+        if (register(name, alias, deprecated, cfGauge) && globalGauge != null)
+        {
+            Metrics.register(globalFactory.createMetricName(name), globalGauge,
+                             globalAliasFactory.createMetricName(alias),
+                             globalFactory.createMetricName(deprecated),
+                             globalAliasFactory.createMetricName(deprecated));
         }
         return cfGauge;
     }
@@ -1126,12 +1146,23 @@ public class TableMetrics
 
     protected TableTimer createTableTimer(String name, String alias, Timer keyspaceTimer)
     {
+        return createTableTimer(name, alias, null, keyspaceTimer);
+    }
+
+    protected TableTimer createTableTimer(String name, String alias, String deprecated, Timer keyspaceTimer)
+    {
         Timer cfTimer = Metrics.timer(factory.createMetricName(name), aliasFactory.createMetricName(alias));
-        register(name, alias, cfTimer);
-        return new TableTimer(cfTimer,
-                              keyspaceTimer,
-                              Metrics.timer(globalFactory.createMetricName(name),
-                                            globalAliasFactory.createMetricName(alias)));
+        register(name, alias, deprecated, keyspaceTimer);
+        Timer global = Metrics.timer(globalFactory.createMetricName(name),
+                                     globalAliasFactory.createMetricName(alias));
+
+        if (deprecated != null)
+        {
+            Metrics.registerMBean(global, globalFactory.createMetricName(deprecated).getMBeanName());
+            Metrics.registerMBean(global, globalAliasFactory.createMetricName(deprecated).getMBeanName());
+        }
+
+        return new TableTimer(cfTimer, keyspaceTimer, global);
     }
 
     protected Timer createTableTimer(String name)
@@ -1174,21 +1205,41 @@ public class TableMetrics
      */
     private boolean register(String name, String alias, Metric metric)
     {
+        return register(name, alias, null, metric);
+    }
+
+    /**
+     * Registers a metric to be removed when unloading CF.
+     * @param deprecated the deprecated name for the metric which should be {@code null} if no deprecation is required
+     * @return true if first time metric with that name has been registered
+     */
+    private boolean register(String name, String alias, String deprecated, Metric metric)
+    {
         boolean ret = allTableMetrics.putIfAbsent(name, ConcurrentHashMap.newKeySet()) == null;
         allTableMetrics.get(name).add(metric);
-        all.add(() -> releaseMetric(name, alias));
+        all.add(() -> releaseMetric(name, alias, deprecated));
         return ret;
     }
 
-    private void releaseMetric(String metricName, String metricAlias)
+    private void releaseMetric(String metricName, String metricAlias, String metricDeprecated)
     {
         CassandraMetricsRegistry.MetricName name = factory.createMetricName(metricName);
-        CassandraMetricsRegistry.MetricName alias = aliasFactory.createMetricName(metricAlias);
+
         final Metric metric = Metrics.getMetrics().get(name.getMetricName());
         if (metric != null)
-        {   // Metric will be null if we are releasing a view metric.  Views have null for ViewLockAcquireTime and ViewLockReadTime
+        {
+            // Metric will be null if we are releasing a view metric.  Views have null for ViewLockAcquireTime and ViewLockReadTime
             allTableMetrics.get(metricName).remove(metric);
-            Metrics.remove(name, alias);
+
+            CassandraMetricsRegistry.MetricName[] aliases = null == metricDeprecated ? new CassandraMetricsRegistry.MetricName[1] : new CassandraMetricsRegistry.MetricName[3];
+            aliases[0] = aliasFactory.createMetricName(metricAlias);
+            if (metricDeprecated != null)
+            {
+                aliases[1] = factory.createMetricName(metricDeprecated);
+                aliases[2] = aliasFactory.createMetricName(metricDeprecated);
+            }
+
+            Metrics.remove(name, aliases);
         }
     }
 
@@ -1196,9 +1247,12 @@ public class TableMetrics
     {
         public final Meter[] all;
         public final Meter table;
+        public final Meter global;
+
         private TableMeter(Meter table, Meter keyspace, Meter global)
         {
             this.table = table;
+            this.global = global;
             this.all = new Meter[]{table, keyspace, global};
         }
 
@@ -1215,9 +1269,12 @@ public class TableMetrics
     {
         public final Histogram[] all;
         public final Histogram cf;
+        public final Histogram global;
+
         private TableHistogram(Histogram cf, Histogram keyspace, Histogram global)
         {
             this.cf = cf;
+            this.global = global;
             this.all = new Histogram[]{cf, keyspace, global};
         }
 
@@ -1234,9 +1291,12 @@ public class TableMetrics
     {
         public final Timer[] all;
         public final Timer cf;
+        public final Timer global;
+
         private TableTimer(Timer cf, Timer keyspace, Timer global)
         {
             this.cf = cf;
+            this.global = global;
             this.all = new Timer[]{cf, keyspace, global};
         }
 
@@ -1327,5 +1387,25 @@ public class TableMetrics
     public interface ReleasableMetric
     {
         void release();
+    }
+
+    private static class GlobalTableGauge implements Gauge<Long>
+    {
+        private final String name;
+
+        public GlobalTableGauge(String name)
+        {
+            this.name = name;
+        }
+
+        public Long getValue()
+        {
+            long total = 0;
+            for (Metric cfGauge : allTableMetrics.get(name))
+            {
+                total = total + ((Gauge<? extends Number>) cfGauge).getValue().longValue();
+            }
+            return total;
+        }
     }
 }

@@ -81,10 +81,11 @@ public final class ClientMetrics
 
         this.servers = servers;
 
-        registerGauge("connectedNativeClients",       this::countConnectedClients);
-        registerGauge("connectedNativeClientsByUser", this::countConnectedClientsByUser);
-        registerGauge("connections",                  this::connectedClients);
-        registerGauge("clientsByProtocolVersion",     this::recentClientStats);
+        // deprecated the lower-cased initial letter metric names in 4.0
+        registerGauge("ConnectedNativeClients", "connectedNativeClients", this::countConnectedClients);
+        registerGauge("ConnectedNativeClientsByUser", "connectedNativeClientsByUser", this::countConnectedClientsByUser);
+        registerGauge("Connections", "connections", this::connectedClients);
+        registerGauge("ClientsByProtocolVersion", "clientsByProtocolVersion", this::recentClientStats);
 
         authSuccess = registerMeter("AuthSuccess");
         authFailure = registerMeter("AuthFailure");
@@ -145,7 +146,15 @@ public final class ClientMetrics
 
     private <T> Gauge<T> registerGauge(String name, Gauge<T> gauge)
     {
-        return Metrics.register(factory.createMetricName(name), gauge);
+        return registerGauge(name, null, gauge);
+    }
+
+    private <T> Gauge<T> registerGauge(String name, String deprecated, Gauge<T> gauge)
+    {
+        Gauge<T> registeredGauge = Metrics.register(factory.createMetricName(name), gauge);
+        if (deprecated != null)
+            Metrics.registerMBean(registeredGauge, factory.createMetricName(deprecated).getMBeanName());
+        return registeredGauge;
     }
 
     private Meter registerMeter(String name)

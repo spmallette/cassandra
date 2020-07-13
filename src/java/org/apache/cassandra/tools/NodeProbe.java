@@ -59,15 +59,14 @@ import org.apache.cassandra.batchlog.BatchlogManager;
 import org.apache.cassandra.batchlog.BatchlogManagerMBean;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ColumnFamilyStoreMBean;
-import org.apache.cassandra.db.HintedHandOffManagerMBean;
-import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.db.compaction.CompactionManagerMBean;
 import org.apache.cassandra.gms.FailureDetector;
 import org.apache.cassandra.gms.FailureDetectorMBean;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.GossiperMBean;
-import org.apache.cassandra.db.HintedHandOffManager;
+import org.apache.cassandra.hints.HintsService;
+import org.apache.cassandra.hints.HintsServiceMBean;
 import org.apache.cassandra.locator.DynamicEndpointSnitchMBean;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
@@ -130,7 +129,7 @@ public class NodeProbe implements AutoCloseable
     protected FailureDetectorMBean fdProxy;
     protected CacheServiceMBean cacheService;
     protected StorageProxyMBean spProxy;
-    protected HintedHandOffManagerMBean hhProxy;
+    protected HintsServiceMBean hhProxy;
     protected BatchlogManagerMBean bmProxy;
     protected ActiveRepairServiceMBean arsProxy;
     private boolean failed;
@@ -224,8 +223,8 @@ public class NodeProbe implements AutoCloseable
             cacheService = JMX.newMBeanProxy(mbeanServerConn, name, CacheServiceMBean.class);
             name = new ObjectName(StorageProxy.MBEAN_NAME);
             spProxy = JMX.newMBeanProxy(mbeanServerConn, name, StorageProxyMBean.class);
-            name = new ObjectName(HintedHandOffManager.MBEAN_NAME);
-            hhProxy = JMX.newMBeanProxy(mbeanServerConn, name, HintedHandOffManagerMBean.class);
+            name = new ObjectName(HintsService.MBEAN_NAME);
+            hhProxy = JMX.newMBeanProxy(mbeanServerConn, name, HintsServiceMBean.class);
             name = new ObjectName(GCInspector.MBEAN_NAME);
             gcProxy = JMX.newMBeanProxy(mbeanServerConn, name, GCInspectorMXBean.class);
             name = new ObjectName(Gossiper.MBEAN_NAME);
@@ -1010,29 +1009,22 @@ public class NodeProbe implements AutoCloseable
 
     public void pauseHintsDelivery()
     {
-        hhProxy.pauseHintsDelivery(true);
+        hhProxy.pauseDispatch();
     }
 
     public void resumeHintsDelivery()
     {
-        hhProxy.pauseHintsDelivery(false);
+        hhProxy.resumeDispatch();
     }
 
     public void truncateHints(final String host)
     {
-        hhProxy.deleteHintsForEndpoint(host);
+        hhProxy.deleteAllHintsForEndpoint(host);
     }
 
     public void truncateHints()
     {
-        try
-        {
-            hhProxy.truncateAllHints();
-        }
-        catch (ExecutionException | InterruptedException e)
-        {
-            throw new RuntimeException("Error while executing truncate hints", e);
-        }
+        hhProxy.deleteAllHints();
     }
 
     public void refreshSizeEstimates()
